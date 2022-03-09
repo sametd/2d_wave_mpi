@@ -4,6 +4,7 @@
   
 - Easily modifiable for any equation  
 - Derived Data Types  
+- Cartesian Virtual Topology 
 - Ghost point exchanges  
 - Output using posix api  
 - Output using NetCDF  
