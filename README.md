@@ -1,7 +1,7 @@
 # **2D Wave Equation Solution with MPI**
 **This code is written as practice. It includes:**
 
- - Fully modifiable equation
+ - Easily modifiable for any equation
  - Derived Data Types 
  - Ghost point exchanges 
  - Output using posix api
