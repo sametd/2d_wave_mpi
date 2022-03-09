@@ -12,4 +12,4 @@
 
 Example Visualization for the code output:
 
-![2D-Wave-Equation](https://ucbirim.com/outmovie.gif)
+<img src="example_output.gif?raw=true" width="200px">
