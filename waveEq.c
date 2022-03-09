@@ -165,7 +165,9 @@ void export_to_file(double T, double* X, int size) {
             CHECK(nc_put_vara_double(nc_file.ncFileID, nc_file.ncWaveLenVarID, nc_file.start, nc_file.count, &X[i * grid_size]));
         }
         nc_file.start[0] += 1;
-        if (fabs(T - t_to_go) < 1e-4) {
+        printf("%f\n", fabs(T - (double)t_to_go));
+        if (fabs(T - (double)t_to_go) < 2e-5) {
+            printf("NetCDF Closed!\n");
             nc_close(nc_file.ncFileID);
         }
     }
@@ -234,7 +236,6 @@ int main(int argc, char* argv[]) {
     }
     MPI_Recv(local_b, (local_size - 2) * (local_size - 2), MPI_DOUBLE, 0, rank.ME,
              rank.top_world, &stat);
-    printf("%4d-%4d\n", rank.ME, local_size);
     local_x = (double*)malloc(local_size * local_size * sizeof(double));
     Fill_X_Init(local_x, local_size);
     apply_boundary(rank, local_x, local_size);
@@ -290,6 +291,14 @@ int main(int argc, char* argv[]) {
         }
         MPI_Recv(local_b, (local_size - 2) * (local_size - 2), MPI_DOUBLE, 0,
                  rank.ME, rank.top_world, &stat);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    free(local_b);
+    free(local_x);
+    if (rank.ME == 0) {
+        free(r1);
+        free(r2);
+        free(b);
     }
     MPI_Finalize();
     return 0;
