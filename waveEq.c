@@ -165,7 +165,6 @@ void export_to_file(double T, double* X, int size) {
             CHECK(nc_put_vara_double(nc_file.ncFileID, nc_file.ncWaveLenVarID, nc_file.start, nc_file.count, &X[i * grid_size]));
         }
         nc_file.start[0] += 1;
-        printf("%f\n", fabs(T - (double)t_to_go));
         if (fabs(T - (double)t_to_go) < 2e-5) {
             printf("NetCDF Closed!\n");
             nc_close(nc_file.ncFileID);
