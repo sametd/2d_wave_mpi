@@ -20,7 +20,7 @@ Example Visualization for the code output:
   
 mpicc -O3 -march=native waveEq.c -o wave.x -lnetcdf -lm  
   
-You can disable NetCDF support by defining write\_netcdf from config.h and then you can comment out include line for the netcdf.h in the waveEq.c. 
+You can disable NetCDF support by defining write\_netcdf as 0 in the config.h and then you can comment out include line for the netcdf.h in the waveEq.c. 
 
 Then, you can compile the code with the following command:
   
