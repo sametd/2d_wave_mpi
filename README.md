@@ -1,27 +1,154 @@
+# 2D Wave Equation Solver with MPI
 
-#  **2D Wave Equation Solution with MPI**  
-**This code is written as practice. It includes:**  
-  
-- Easily modifiable for any equation  
-- Derived Data Types  
-- Cartesian Virtual Topology 
-- Ghost point exchanges  
-- Output using posix api  
-- Output using NetCDF  
-- Very robust Gauss-Seidel solver  
-  
-**Important Note:** This code designed to run with 1,4 or 9 CPU cores. It scales well with the increasing processor count, for more core count, grid size and processor size should be compatible. Scaling is mostly IO bound.  
-  
-Example Visualization for the code output:  
-  
-<img  src="example_output.gif?raw=true"  width="200px">  
-  
-**Compilation Instructions:**  
-  
-mpicc -O3 -march=native waveEq.c -o wave.x -lnetcdf -lm  
-  
-You can disable NetCDF support by defining write\_netcdf as 0 in the config.h and then you can comment out include line for the netcdf.h in the waveEq.c. 
+Solves the 2D wave equation on a square domain with zero boundary conditions. Uses implicit time stepping with a Gauss-Seidel iterative solver, parallelized via MPI 2D Cartesian domain decomposition.
 
-Then, you can compile the code with the following command:
-  
+<img src="wave_simulation.gif?raw=true" width="400px">
+
+## Quick Start
+
+```bash
+# Install MPI and NetCDF (Ubuntu/Debian)
+sudo apt install libopenmpi-dev libnetcdf-dev
+
+# Install MPI and NetCDF (Arch)
+sudo pacman -S openmpi netcdf
+
+# Build and run
+mpicc -O3 -march=native waveEq.c -o wave.x -lnetcdf -lm
+mpirun -np 4 ./wave.x
+
+# View results
+ncview grid.nc
+```
+
+## Output Formats
+
+The solver supports three output formats, controlled by flags in `config.h`. Set to `1` to enable, `0` to disable.
+
+| Flag | Default | Output file | Requires |
+|---|---|---|---|
+| `write_posix` | 0 | `t_NNNN.txt` | nothing |
+| `write_netcdf` | 1 | `grid.nc` | `libnetcdf` |
+| `write_tensogram` | 0 | `grid.tgm` | `libtensogram_ffi` |
+
+### Building with Tensogram support
+
+[Tensogram](https://github.com/ecmwf/tensogram) is an experimental N-Tensor binary format. To enable it:
+
+1. Set `write_tensogram` to `1` in `config.h`
+2. Build the Tensogram FFI library and copy its header:
+
+```bash
+cd /path/to/tensogram
+cargo build --release -p tensogram-ffi
+cp crates/tensogram-ffi/tensogram.h /path/to/2d_wave_mpi/
+```
+
+3. Compile with the Tensogram library:
+
+```bash
+TGM=/path/to/tensogram/target/release
+mpicc -O3 -march=native -I. waveEq.c -o wave.x \
+    -lnetcdf -L$TGM -ltensogram_ffi -lm -lpthread -ldl
+```
+
+4. Run with the library path:
+
+```bash
+LD_LIBRARY_PATH=$TGM mpirun -np 4 ./wave.x
+```
+
+### Building without any optional output
+
+Set both `write_netcdf` and `write_tensogram` to `0` in `config.h`:
+
+```bash
 mpicc -O3 -march=native waveEq.c -o wave.x -lm
+```
+
+## Visualization
+
+### NetCDF — use ncview or any NetCDF viewer
+
+```bash
+ncview grid.nc
+```
+
+### Tensogram — use the included Python visualizer
+
+The visualizer uses the `tensogram` Python bindings. Install them first:
+
+```bash
+cd /path/to/tensogram
+uv venv .venv && source .venv/bin/activate
+uv pip install numpy matplotlib Pillow maturin
+maturin develop --release -m crates/tensogram-python/Cargo.toml
+```
+
+Then visualize:
+
+```bash
+# Interactive window
+python3 visualize_tgm.py grid.tgm
+
+# Save as GIF (every 10th frame)
+python3 visualize_tgm.py grid.tgm 10 --save
+```
+
+Usage: `visualize_tgm.py <file> [skip] [--save]`
+
+- `file` — path to the `.tgm` file (default: `grid.tgm`)
+- `skip` — use every Nth frame (default: 10)
+- `--save` — save as GIF instead of showing interactive window
+
+The `dt` value is read automatically from the Tensogram metadata.
+
+## Running the Solver
+
+The number of MPI ranks must be a perfect square (1, 4, 9, 16, ...) and the grid size (528 by default) must be divisible by `sqrt(ranks)`.
+
+```bash
+mpirun -np 1 ./wave.x     # single process
+mpirun -np 4 ./wave.x     # 2x2 decomposition
+mpirun -np 9 ./wave.x     # 3x3 decomposition
+```
+
+## Configuration
+
+All parameters are in `config.h`.
+
+### Simulation
+
+| Parameter | Default | Description |
+|---|---|---|
+| `dx` | 0.00594998 | Grid spacing (gives 528x528 grid) |
+| `dt` | 0.001 | Time step |
+| `f_to_go` | 3.14159 (pi) | Domain size |
+| `t_to_go` | 3.0 | Total simulation time |
+| `gerr_max` | 1e-6 | Gauss-Seidel convergence tolerance |
+
+### Output
+
+| Parameter | Default | Description |
+|---|---|---|
+| `write_posix` | 0 | Enable POSIX text file output |
+| `write_netcdf` | 1 | Enable NetCDF output |
+| `write_tensogram` | 0 | Enable Tensogram output |
+
+### Tensogram encoding
+
+These are only used when `write_tensogram` is `1`:
+
+| Parameter | Default | Description |
+|---|---|---|
+| `tgm_use_packing` | 1 | Use simple_packing lossy compression (0 = raw float64) |
+| `tgm_bits_per_value` | 24 | Bits per value when packing (lower = smaller file, less precision) |
+
+Common `tgm_bits_per_value` choices:
+
+| Bits | Compression vs raw | Precision loss | Use case |
+|---|---|---|---|
+| 24 | ~2.7x smaller | ~10⁻⁷ | Default, good balance |
+| 16 | ~4x smaller | ~10⁻⁵ | Visualization, quick analysis |
+| 12 | ~5.3x smaller | ~10⁻⁴ | Thumbnails, previews |
+| 0 (packing off) | 1x (no compression) | None | Exact reproducibility |

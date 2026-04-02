@@ -36,6 +36,16 @@
 *.x86_64
 *.hex
 
+# Solver output
+*.nc
+*.tgm
+*.gif
+*.x
+t_*.txt
+
+# Copied headers
+tensogram.h
+
 # Debug files
 *.dSYM/
 *.su
