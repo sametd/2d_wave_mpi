@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+#include <mpi.h>
 #include "config.h"
-#include "math.h"
-#include "mpi.h"
-#include "netcdf.h"
-#include "unistd.h"
+#if write_netcdf
+#include <netcdf.h>
+#endif  /* write_netcdf */
 
 typedef struct {
     // u->up ..
@@ -17,13 +18,19 @@ ranks_t get_ranks(void) {
     int dims[2], periodic[2], mycoords[2];
     periodic[0] = 0;
     periodic[1] = 0;
-    MPI_Comm_size(MPI_COMM_WORLD, &(r.MAX));  // get my rank in the new topology
-    r.TOP = (int)sqrt(r.MAX);                 // r.TOP-> topology number
-    if (r.MAX != r.TOP * r.TOP)
-        exit(-1);
+    MPI_Comm_size(MPI_COMM_WORLD, &(r.MAX));
+    r.TOP = (int)sqrt(r.MAX);
+    if (r.MAX != r.TOP * r.TOP) {
+        fprintf(stderr, "Error: number of ranks (%d) must be a perfect square\n", r.MAX);
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+    if (grid_size % r.TOP != 0) {
+        fprintf(stderr, "Error: grid_size (%d) must be divisible by sqrt(ranks) (%d)\n", grid_size, r.TOP);
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
     dims[0] = r.TOP;
     dims[1] = r.TOP;
-    MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periodic, 1, &(r.top_world));
+    MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periodic, 0, &(r.top_world));
     MPI_Comm_rank(r.top_world, &(r.ME));              // get my rank in the new topology
     MPI_Cart_coords(r.top_world, r.ME, 2, mycoords);  // get my coordinates
     MPI_Cart_shift(r.top_world, 0, 1, &(r.U), &(r.D));
@@ -31,7 +38,7 @@ ranks_t get_ranks(void) {
     return r;
 }
 
-#ifdef write_netcdf
+#if write_netcdf
 typedef struct ncFileProps {
     NETCDFID ncDimIDs[3];
     NETCDFID ncFileID;
@@ -80,7 +87,27 @@ ncFileProps create_ncFile() {
     return nc_file;
 }
 
-#endif
+static ncFileProps g_nc_file;
+
+void nc_write_step(double T, double* X) {
+    float time_val = (float)T;
+    size_t time_idx = g_nc_file.start[0];
+    CHECK(nc_put_var1_float(g_nc_file.ncFileID, g_nc_file.ncTVarID, &time_idx, &time_val));
+
+    for (int i = 0; i < grid_size; ++i) {
+        g_nc_file.start[1] = i;
+        CHECK(nc_put_vara_double(g_nc_file.ncFileID, g_nc_file.ncWaveLenVarID,
+                                 g_nc_file.start, g_nc_file.count, &X[i * grid_size]));
+    }
+    g_nc_file.start[0] += 1;
+    CHECK(nc_sync(g_nc_file.ncFileID));
+}
+
+void nc_close_file(void) {
+    CHECK(nc_close(g_nc_file.ncFileID));
+}
+
+#endif  /* write_netcdf */
 
 
 void apply_initial_cond(double* vec) {
@@ -125,7 +152,7 @@ double GaussSeidelRB(double* x, double* b, int n) {
         ib = (n + 2) * (j + 1) + 1;
         for (int i = 0; i < n; i++) {
             x_nxt = off_diag * (x[ib + i + up] + x[ib + i + lt] + x[ib + i + rt] + x[ib + i + dn]);
-            x_nxt = (b[n * j + i] - x_nxt) / on_diag;
+            x_nxt = (b[n * j + i] + x_nxt) / on_diag;
             err += fabs(x[ib + i] - x_nxt);
             x[ib + i] = x_nxt;
         }
@@ -153,42 +180,28 @@ void export_to_file(double T, double* X, int size) {
         fclose(fp);
     }
 
-    if (write_netcdf) {
-        static ncFileProps nc_file;
-        if (access(ncFileName, F_OK)) {
-            nc_file = create_ncFile();
-        }
-
-
-        for (int i = 0; i < grid_size; ++i) {
-            nc_file.start[1] = i;
-            CHECK(nc_put_vara_double(nc_file.ncFileID, nc_file.ncWaveLenVarID, nc_file.start, nc_file.count, &X[i * grid_size]));
-        }
-        nc_file.start[0] += 1;
-        if (fabs(T - (double)t_to_go) < 2e-5) {
-            printf("NetCDF Closed!\n");
-            nc_close(nc_file.ncFileID);
-        }
-    }
+#if write_netcdf
+    nc_write_step(T, X);
+#endif  /* write_netcdf */
 }
 
 void apply_boundary(ranks_t rank, double* local_x, int local_size) {
-    if (rank.L == -2) {
+    if (rank.L == MPI_PROC_NULL) {
         for (int i = 0; i < local_size; i++) {
             local_x[i * local_size] = 0.;
         }
     }
-    if (rank.R == -2) {
+    if (rank.R == MPI_PROC_NULL) {
         for (int i = 0; i < local_size; i++) {
             local_x[i * local_size + local_size - 1] = 0.;
         }
     }
-    if (rank.U == -2) {
+    if (rank.U == MPI_PROC_NULL) {
         for (int i = 0; i < local_size; i++) {
             local_x[i] = 0.;
         }
     }
-    if (rank.D == -2) {
+    if (rank.D == MPI_PROC_NULL) {
         for (int i = 0; i < local_size; i++) {
             local_x[local_size * (local_size - 1) + i] = 0.;
         }
@@ -200,9 +213,12 @@ int main(int argc, char* argv[]) {
     ranks_t rank;
     MPI_Status stat;
     MPI_Request req;
+    MPI_Request *scatter_reqs = NULL;
     MPI_Init(&argc, &argv);
+    setbuf(stdout, NULL);
 
     rank = get_ranks();
+    scatter_reqs = (MPI_Request*)malloc(rank.MAX * sizeof(MPI_Request));
     double *r1, *r2, *b, *local_x, *local_b, t, gerr, err;
     int local_size;
     local_size = (grid_size / rank.TOP) + 2;
@@ -224,53 +240,52 @@ int main(int argc, char* argv[]) {
         r2 = (double*)malloc(grid_size * grid_size * sizeof(double));
         vec_copy(r1, r2);
         b = (double*)malloc(grid_size * grid_size * sizeof(double));
+#if write_netcdf
+        g_nc_file = create_ncFile();
+#endif  /* write_netcdf */
         calcB(r1, r2, b);
         for (int i = 0; i < rank.TOP; i++) {
             for (int j = 0; j < rank.TOP; j++) {
+                int dest = i * rank.TOP + j;
                 MPI_Isend(&b[i * (grid_size * (local_size - 2)) + j * (local_size - 2)],
-                          1, subgrid, i * rank.TOP + j, i * rank.TOP + j,
-                          rank.top_world, &req);
+                          1, subgrid, dest, dest,
+                          rank.top_world, &scatter_reqs[dest]);
             }
         }
     }
     MPI_Recv(local_b, (local_size - 2) * (local_size - 2), MPI_DOUBLE, 0, rank.ME,
              rank.top_world, &stat);
+    if (rank.ME == 0) {
+        MPI_Waitall(rank.MAX, scatter_reqs, MPI_STATUSES_IGNORE);
+    }
     local_x = (double*)malloc(local_size * local_size * sizeof(double));
     Fill_X_Init(local_x, local_size);
     apply_boundary(rank, local_x, local_size);
     for (t = 0; t < t_to_go; t += dt) {
         do {
             err = GaussSeidelRB(local_x, local_b, local_size - 2);
-            MPI_Isend(&local_x[local_size], 1, vt_horizontal, rank.U, rank.U + 10000,
-                      rank.top_world, &req);
-            MPI_Recv(&local_x[local_size * (local_size - 1)], 1, vt_horizontal,
-                     rank.D, rank.ME + 10000, rank.top_world, &stat);
-            MPI_Isend(&local_x[local_size * (local_size - 2)], 1, vt_horizontal,
-                      rank.D, rank.D + 10000, rank.top_world, &req);
-            MPI_Recv(local_x, 1, vt_horizontal, rank.U, rank.ME + 10000,
-                     rank.top_world, &stat);
-            MPI_Isend(&local_x[1], 1, vt_vertical, rank.L, rank.L + 10000,
-                      rank.top_world, &req);
-            MPI_Recv(&local_x[local_size - 1], 1, vt_vertical, rank.R,
-                     rank.ME + 10000, rank.top_world, &stat);
-            MPI_Isend(&local_x[local_size - 2], 1, vt_vertical, rank.R,
-                      rank.R + 10000, rank.top_world, &req);
-            MPI_Recv(local_x, 1, vt_vertical, rank.L, rank.ME + 10000, rank.top_world,
-                     &stat);
+            MPI_Sendrecv(&local_x[local_size], 1, vt_horizontal, rank.U, 0,
+                         &local_x[local_size * (local_size - 1)], 1, vt_horizontal,
+                         rank.D, 0, rank.top_world, &stat);
+            MPI_Sendrecv(&local_x[local_size * (local_size - 2)], 1, vt_horizontal, rank.D, 1,
+                         local_x, 1, vt_horizontal,
+                         rank.U, 1, rank.top_world, &stat);
+            MPI_Sendrecv(&local_x[1], 1, vt_vertical, rank.L, 2,
+                         &local_x[local_size - 1], 1, vt_vertical,
+                         rank.R, 2, rank.top_world, &stat);
+            MPI_Sendrecv(&local_x[local_size - 2], 1, vt_vertical, rank.R, 3,
+                         local_x, 1, vt_vertical,
+                         rank.L, 3, rank.top_world, &stat);
             MPI_Allreduce(&err, &gerr, 1, MPI_DOUBLE, MPI_MAX, rank.top_world);
             if (rank.ME == 0) {
                 printf("%e\t%f\t%d\n", gerr, t, grid_size);
             }
         } while (gerr > gerr_max);
         apply_boundary(rank, local_x, local_size);
-        MPI_Isend(&local_x[local_size + 1], 1, nonghost, 0, rank.ME, rank.top_world,
-                  &req);
-
+        MPI_Isend(&local_x[local_size + 1], 1, nonghost, 0, rank.ME, rank.top_world, &req);
 
         if (rank.ME == 0) {
             vec_copy(r1, r2);
-
-            export_to_file(t, r1, grid_size);
 
             for (int i = 0; i < rank.TOP; i++) {
                 for (int j = 0; j < rank.TOP; j++) {
@@ -279,22 +294,37 @@ int main(int argc, char* argv[]) {
                              rank.top_world, &stat);
                 }
             }
+            export_to_file(t, r1, grid_size);
             calcB(r1, r2, b);
             for (int i = 0; i < rank.TOP; i++) {
                 for (int j = 0; j < rank.TOP; j++) {
+                    int dest = i * rank.TOP + j;
                     MPI_Isend(&b[(i * (grid_size) * (grid_size / rank.TOP)) + (j * (grid_size / rank.TOP))],
-                              1, subgrid, i * rank.TOP + j, i * rank.TOP + j,
-                              rank.top_world, &req);
+                              1, subgrid, dest, dest,
+                              rank.top_world, &scatter_reqs[dest]);
                 }
             }
         }
+        MPI_Wait(&req, MPI_STATUS_IGNORE);
         MPI_Recv(local_b, (local_size - 2) * (local_size - 2), MPI_DOUBLE, 0,
                  rank.ME, rank.top_world, &stat);
+        if (rank.ME == 0) {
+            MPI_Waitall(rank.MAX, scatter_reqs, MPI_STATUSES_IGNORE);
+        }
     }
     MPI_Barrier(MPI_COMM_WORLD);
     free(local_b);
     free(local_x);
+    free(scatter_reqs);
+    MPI_Type_free(&subgrid);
+    MPI_Type_free(&vt_vertical);
+    MPI_Type_free(&vt_horizontal);
+    MPI_Type_free(&nonghost);
+    MPI_Comm_free(&rank.top_world);
     if (rank.ME == 0) {
+#if write_netcdf
+        nc_close_file();
+#endif  /* write_netcdf */
         free(r1);
         free(r2);
         free(b);
