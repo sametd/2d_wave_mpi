@@ -5,7 +5,10 @@
 #include "config.h"
 #if write_netcdf
 #include <netcdf.h>
-#endif  /* write_netcdf */
+#endif
+#if write_tensogram
+#include "tensogram.h"
+#endif
 
 typedef struct {
     // u->up ..
@@ -107,13 +110,88 @@ void nc_close_file(void) {
     CHECK(nc_close(g_nc_file.ncFileID));
 }
 
-#endif  /* write_netcdf */
+#endif
+
+#if write_tensogram
+static struct tgm_TgmFile *g_tgm_file = NULL;
+
+void tgm_create_output(void) {
+    TGM_CHECK(tgm_file_create(tgmFileName, &g_tgm_file));
+}
+
+void tgm_write_step(double T, double* X) {
+    size_t num_values = (size_t)grid_size * grid_size;
+    size_t num_bytes = num_values * sizeof(double);
+    char json[1024];
+    int n;
+
+#if tgm_use_packing
+    double ref_val;
+    int32_t bin_scale;
+    TGM_CHECK(tgm_simple_packing_compute_params(
+        X, num_values, tgm_bits_per_value, 0, &ref_val, &bin_scale));
+
+    n = snprintf(json, sizeof(json),
+        "{"
+        "\"version\":1,"
+        "\"objects\":[{\"type\":\"ntensor\",\"ndim\":2,"
+            "\"shape\":[%d,%d],\"strides\":[%d,1],\"dtype\":\"float64\"}],"
+        "\"payload\":[{\"byte_order\":\"little\",\"encoding\":\"simple_packing\","
+            "\"filter\":\"none\",\"compression\":\"none\","
+            "\"reference_value\":%.17g,\"binary_scale_factor\":%d,"
+            "\"decimal_scale_factor\":0,\"bits_per_value\":%d}],"
+        "\"wave\":{\"time\":%.10g,\"dx\":%.10g,\"dt\":%.10g}"
+        "}", grid_size, grid_size, grid_size,
+        ref_val, (int)bin_scale, tgm_bits_per_value, T, (double)dx, (double)dt);
+#else
+    n = snprintf(json, sizeof(json),
+        "{"
+        "\"version\":1,"
+        "\"objects\":[{\"type\":\"ntensor\",\"ndim\":2,"
+            "\"shape\":[%d,%d],\"strides\":[%d,1],\"dtype\":\"float64\"}],"
+        "\"payload\":[{\"byte_order\":\"little\",\"encoding\":\"none\","
+            "\"filter\":\"none\",\"compression\":\"none\"}],"
+        "\"wave\":{\"time\":%.10g,\"dx\":%.10g,\"dt\":%.10g}"
+        "}", grid_size, grid_size, grid_size, T, (double)dx, (double)dt);
+#endif
+
+    if (n < 0 || n >= (int)sizeof(json)) {
+        fprintf(stderr, "Tensogram: JSON buffer overflow\n");
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+
+    const uint8_t *data_ptrs[1] = { (const uint8_t*)X };
+    uintptr_t data_lens[1] = { num_bytes };
+    struct tgm_TgmBytes encoded;
+
+    TGM_CHECK(tgm_encode(json, data_ptrs, data_lens, 1, NULL, &encoded));
+    TGM_CHECK(tgm_file_append_raw(g_tgm_file, encoded.data, encoded.len));
+    tgm_bytes_free(encoded);
+}
+
+void tgm_close_output(void) {
+    if (g_tgm_file != NULL) {
+        tgm_file_close(g_tgm_file);
+        g_tgm_file = NULL;
+    }
+}
+#endif
 
 
 void apply_initial_cond(double* vec) {
+    double cx1 = f_to_go * 0.3;
+    double cy1 = f_to_go * 0.3;
+    double cx2 = f_to_go * 0.7;
+    double cy2 = f_to_go * 0.7;
+    double sigma = f_to_go / 15.0;
+    double sigma2 = sigma * sigma;
     for (int i = 0; i < grid_size; i++) {
         for (int j = 0; j < grid_size; j++) {
-            vec[i * grid_size + j] = i * dx * ((f_to_go)-i * (dx)) * j * (dx) * ((f_to_go)-j * (dx));
+            double x = i * dx;
+            double y = j * dx;
+            double r2a = (x - cx1) * (x - cx1) + (y - cy1) * (y - cy1);
+            double r2b = (x - cx2) * (x - cx2) + (y - cy2) * (y - cy2);
+            vec[i * grid_size + j] = exp(-r2a / (2.0 * sigma2)) + exp(-r2b / (2.0 * sigma2));
         }
     }
 }
@@ -182,7 +260,10 @@ void export_to_file(double T, double* X, int size) {
 
 #if write_netcdf
     nc_write_step(T, X);
-#endif  /* write_netcdf */
+#endif
+#if write_tensogram
+    tgm_write_step(T, X);
+#endif
 }
 
 void apply_boundary(ranks_t rank, double* local_x, int local_size) {
@@ -242,7 +323,10 @@ int main(int argc, char* argv[]) {
         b = (double*)malloc(grid_size * grid_size * sizeof(double));
 #if write_netcdf
         g_nc_file = create_ncFile();
-#endif  /* write_netcdf */
+#endif
+#if write_tensogram
+        tgm_create_output();
+#endif
         calcB(r1, r2, b);
         for (int i = 0; i < rank.TOP; i++) {
             for (int j = 0; j < rank.TOP; j++) {
@@ -324,7 +408,10 @@ int main(int argc, char* argv[]) {
     if (rank.ME == 0) {
 #if write_netcdf
         nc_close_file();
-#endif  /* write_netcdf */
+#endif
+#if write_tensogram
+        tgm_close_output();
+#endif
         free(r1);
         free(r2);
         free(b);
