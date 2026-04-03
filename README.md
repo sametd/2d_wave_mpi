@@ -93,15 +93,19 @@ python3 visualize_tgm.py grid.tgm
 
 # Save as GIF (every 10th frame)
 python3 visualize_tgm.py grid.tgm 10 --save
+
+# Zoom into a sub-region using range decode (tensorjump)
+python3 visualize_tgm.py grid.tgm 10 --zoom 100:400,100:400 --save
 ```
 
-Usage: `visualize_tgm.py <file> [skip] [--save]`
+Usage: `visualize_tgm.py <file> [skip] [--save] [--zoom row_start:row_end,col_start:col_end]`
 
 - `file` — path to the `.tgm` file (default: `grid.tgm`)
 - `skip` — use every Nth frame (default: 10)
 - `--save` — save as GIF instead of showing interactive window
+- `--zoom` — decode only a rectangular sub-region via range decode (tensorjump). Only fetches the bytes needed for the specified rows and columns — no full-grid decode.
 
-The `dt` value is read automatically from the Tensogram metadata.
+The `dt` value and grid size are read automatically from the Tensogram metadata.
 
 ## Running the Solver
 
@@ -143,6 +147,12 @@ These are only used when `write_tensogram` is `1`:
 |---|---|---|
 | `tgm_use_packing` | 1 | Use simple_packing lossy compression (0 = raw float64) |
 | `tgm_bits_per_value` | 24 | Bits per value when packing (lower = smaller file, less precision) |
+| `tgm_use_szip` | 1 | Apply szip (libaec) lossless compression on top of packing |
+| `tgm_szip_rsi` | 128 | Records per segment for szip |
+| `tgm_szip_block_size` | 16 | Samples per block for szip |
+| `tgm_szip_flags` | 8 | libaec flags (8 = AEC_DATA_PREPROCESS) |
+
+The encoding pipeline is: **raw float64 → simple_packing (lossy) → szip (lossless)**. Each stage is independently toggleable. With both enabled (default), a 528×528 float64 grid compresses from ~2.2 MB to ~0.6 MB per timestep.
 
 Common `tgm_bits_per_value` choices:
 
@@ -152,3 +162,5 @@ Common `tgm_bits_per_value` choices:
 | 16 | ~4x smaller | ~10⁻⁵ | Visualization, quick analysis |
 | 12 | ~5.3x smaller | ~10⁻⁴ | Thumbnails, previews |
 | 0 (packing off) | 1x (no compression) | None | Exact reproducibility |
+
+When `tgm_use_szip` is enabled, the encoder automatically stores szip block offsets in the metadata. This enables **range decode (tensorjump)** — the visualizer's `--zoom` flag uses this to fetch only the rows/columns needed without decompressing the full grid.

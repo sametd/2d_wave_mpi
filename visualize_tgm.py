@@ -2,6 +2,9 @@
 """Visualize a 2D wave equation .tgm file produced by the MPI solver.
 
 Requires: tensogram (maturin develop), numpy, matplotlib, Pillow
+
+Usage:
+    python3 visualize_tgm.py <file> [skip] [--save] [--zoom row_start:row_end,col_start:col_end]
 """
 
 import io
@@ -15,26 +18,67 @@ import tensogram
 from PIL import Image
 
 
+def decode_zoom(f, idx, row_range, col_range, grid_size):
+    """Decode a rectangular sub-region using range decode (tensorjump).
+
+    Maps 2D row/column ranges to 1D element offsets in the flattened row-major
+    array: row i starts at element i*grid_size.
+    """
+    r0, r1 = row_range
+    c0, c1 = col_range
+    raw = f.read_message(idx)
+    ranges = [(r * grid_size + c0, c1 - c0) for r in range(r0, r1)]
+    flat = tensogram.decode_range(raw, 0, ranges)
+    return flat.reshape(r1 - r0, c1 - c0)
+
+
+def parse_zoom(zoom_str):
+    row_part, col_part = zoom_str.split(",")
+    r0, r1 = map(int, row_part.split(":"))
+    c0, c1 = map(int, col_part.split(":"))
+    return (r0, r1), (c0, c1)
+
+
 def main():
     tgm_path = sys.argv[1] if len(sys.argv) > 1 else "grid.tgm"
     skip = int(sys.argv[2]) if len(sys.argv) > 2 else 10
+    zoom = None
+    for i, arg in enumerate(sys.argv):
+        if arg == "--zoom" and i + 1 < len(sys.argv):
+            zoom = parse_zoom(sys.argv[i + 1])
 
     print(f"Loading {tgm_path}...")
     f = tensogram.TensogramFile.open(tgm_path)
     count = f.message_count()
-    print(f"Found {count} messages")
 
     meta0, _ = f.decode_message(0)
     dt = meta0["wave"]["dt"]
-    print(f"dt = {dt} (from metadata)")
+    grid_size = int(meta0.objects[0].shape[0])
+    compression = meta0.payload[0].compression
+    encoding = meta0.payload[0].encoding
+    print(
+        f"  {count} messages, {grid_size}x{grid_size}, encoding={encoding}, compression={compression}"
+    )
+    print(f"  dt={dt}")
+
+    if zoom:
+        row_range, col_range = zoom
+        print(
+            f"  zoom: rows [{row_range[0]}:{row_range[1]}], cols [{col_range[0]}:{col_range[1]}]"
+        )
+        print(f"  using range decode (tensorjump)")
 
     indices = list(range(0, count, skip))
     print(f"Decoding {len(indices)} frames (every {skip}th)...")
 
     frames = []
     for i, idx in enumerate(indices):
-        meta, arrays = f.decode_message(idx)
-        frames.append(arrays[0][::4, ::4])
+        if zoom:
+            frame = decode_zoom(f, idx, row_range, col_range, grid_size)
+        else:
+            _, arrays = f.decode_message(idx)
+            frame = arrays[0][::4, ::4]
+        frames.append(frame)
         if (i + 1) % 50 == 0:
             print(f"  decoded {i + 1}/{len(indices)}")
 

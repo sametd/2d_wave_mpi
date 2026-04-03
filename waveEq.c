@@ -122,8 +122,27 @@ void tgm_create_output(void) {
 void tgm_write_step(double T, double* X) {
     size_t num_values = (size_t)grid_size * grid_size;
     size_t num_bytes = num_values * sizeof(double);
-    char json[1024];
+    char json[2048];
+    int remaining = (int)sizeof(json);
+    int pos = 0;
     int n;
+
+#define JSON_APPEND(...)                                        \
+    do {                                                        \
+        n = snprintf(json + pos, remaining, __VA_ARGS__);       \
+        if (n < 0 || n >= remaining) {                          \
+            fprintf(stderr, "Tensogram: JSON buffer overflow\n");\
+            MPI_Abort(MPI_COMM_WORLD, 1);                       \
+        }                                                       \
+        pos += n;                                               \
+        remaining -= n;                                         \
+    } while (0)
+
+    JSON_APPEND("{\"version\":1,"
+        "\"objects\":[{\"type\":\"ntensor\",\"ndim\":2,"
+            "\"shape\":[%d,%d],\"strides\":[%d,1],\"dtype\":\"float64\"}],"
+        "\"payload\":[{\"byte_order\":\"little\",",
+        grid_size, grid_size, grid_size);
 
 #if tgm_use_packing
     double ref_val;
@@ -131,34 +150,28 @@ void tgm_write_step(double T, double* X) {
     TGM_CHECK(tgm_simple_packing_compute_params(
         X, num_values, tgm_bits_per_value, 0, &ref_val, &bin_scale));
 
-    n = snprintf(json, sizeof(json),
-        "{"
-        "\"version\":1,"
-        "\"objects\":[{\"type\":\"ntensor\",\"ndim\":2,"
-            "\"shape\":[%d,%d],\"strides\":[%d,1],\"dtype\":\"float64\"}],"
-        "\"payload\":[{\"byte_order\":\"little\",\"encoding\":\"simple_packing\","
-            "\"filter\":\"none\",\"compression\":\"none\","
-            "\"reference_value\":%.17g,\"binary_scale_factor\":%d,"
-            "\"decimal_scale_factor\":0,\"bits_per_value\":%d}],"
-        "\"wave\":{\"time\":%.10g,\"dx\":%.10g,\"dt\":%.10g}"
-        "}", grid_size, grid_size, grid_size,
-        ref_val, (int)bin_scale, tgm_bits_per_value, T, (double)dx, (double)dt);
+    JSON_APPEND("\"encoding\":\"simple_packing\","
+        "\"reference_value\":%.17g,\"binary_scale_factor\":%d,"
+        "\"decimal_scale_factor\":0,\"bits_per_value\":%d,",
+        ref_val, (int)bin_scale, tgm_bits_per_value);
 #else
-    n = snprintf(json, sizeof(json),
-        "{"
-        "\"version\":1,"
-        "\"objects\":[{\"type\":\"ntensor\",\"ndim\":2,"
-            "\"shape\":[%d,%d],\"strides\":[%d,1],\"dtype\":\"float64\"}],"
-        "\"payload\":[{\"byte_order\":\"little\",\"encoding\":\"none\","
-            "\"filter\":\"none\",\"compression\":\"none\"}],"
-        "\"wave\":{\"time\":%.10g,\"dx\":%.10g,\"dt\":%.10g}"
-        "}", grid_size, grid_size, grid_size, T, (double)dx, (double)dt);
+    JSON_APPEND("\"encoding\":\"none\",");
 #endif
 
-    if (n < 0 || n >= (int)sizeof(json)) {
-        fprintf(stderr, "Tensogram: JSON buffer overflow\n");
-        MPI_Abort(MPI_COMM_WORLD, 1);
-    }
+    JSON_APPEND("\"filter\":\"none\",");
+
+#if tgm_use_szip
+    JSON_APPEND("\"compression\":\"szip\","
+        "\"szip_rsi\":%d,\"szip_block_size\":%d,\"szip_flags\":%d",
+        tgm_szip_rsi, tgm_szip_block_size, tgm_szip_flags);
+#else
+    JSON_APPEND("\"compression\":\"none\"");
+#endif
+
+    JSON_APPEND("}],\"wave\":{\"time\":%.10g,\"dx\":%.10g,\"dt\":%.10g}}",
+        T, (double)dx, (double)dt);
+
+#undef JSON_APPEND
 
     const uint8_t *data_ptrs[1] = { (const uint8_t*)X };
     uintptr_t data_lens[1] = { num_bytes };

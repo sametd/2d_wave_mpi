@@ -31,6 +31,10 @@ typedef int NETCDFID;
 #define tgmFileName "grid.tgm"
 #define tgm_use_packing 1
 #define tgm_bits_per_value 24
+#define tgm_use_szip 1
+#define tgm_szip_rsi 128
+#define tgm_szip_block_size 16
+#define tgm_szip_flags 8
 #define TGM_CHECK(e)                                                            \
     {                                                                           \
         enum tgm_TgmError tgm_err = (e);                                       \
