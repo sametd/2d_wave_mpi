@@ -25,17 +25,13 @@ def load_frame(path, frame_idx):
     """Decode a single frame from a .tgm file."""
     f = tensogram.TensogramFile.open(path)
     idx = min(frame_idx, f.message_count() - 1)
-    return f.file_decode_object(idx, 0)["data"]
+    return f[idx].objects[0][1]
 
 
 def load_all_frames(path, skip=5):
     """Decode all frames (with skip) for animation."""
     f = tensogram.TensogramFile.open(path)
-    count = f.message_count()
-    frames = []
-    for idx in range(0, count, skip):
-        frames.append(f.file_decode_object(idx, 0)["data"])
-    return frames
+    return [msg.objects[0][1] for msg in f[::skip]]
 
 
 def plot_comparison(frames, frame_idx, raw_arr, save):
