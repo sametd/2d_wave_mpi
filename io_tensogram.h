@@ -17,8 +17,10 @@
     {                                                                           \
         tgm_error tgm_err = (e);                                               \
         if (tgm_err != TGM_ERROR_OK) {                                         \
-            const char *tgm_msg = tgm_last_error();                             \
-            fprintf(stderr, "Tensogram error: %s\n", tgm_msg ? tgm_msg : "?"); \
+            const char *tgm_detail = tgm_last_error();                          \
+            const char *tgm_code   = tgm_error_string(tgm_err);                \
+            fprintf(stderr, "Tensogram error [%s]: %s\n",                       \
+                    tgm_code, tgm_detail ? tgm_detail : "(no details)");        \
             MPI_Abort(MPI_COMM_WORLD, (int)tgm_err);                            \
         }                                                                       \
     }
@@ -170,20 +172,11 @@ static tgm_bench_result_t tgm_run_codec_bench(
 
         const uint8_t *ptrs[1] = { (const uint8_t *)snapshots[s] };
         size_t lens[1] = { raw_bytes };
-        tgm_bytes_t encoded;
 
-        err = tgm_encode(json, ptrs, lens, 1, "xxh3", &encoded);
+        err = tgm_file_append(file, json, ptrs, lens, 1, "xxh3");
         if (err != TGM_ERROR_OK) {
-            fprintf(stderr, "  [%s] encode failed at step %d: %s\n",
+            fprintf(stderr, "  [%s] encode+append failed at step %d: %s\n",
                     codec->name, s, tgm_last_error());
-            tgm_file_close(file);
-            return res;
-        }
-
-        err = tgm_file_append_raw(file, encoded.data, encoded.len);
-        tgm_bytes_free(encoded);
-        if (err != TGM_ERROR_OK) {
-            fprintf(stderr, "  [%s] append failed: %s\n", codec->name, tgm_last_error());
             tgm_file_close(file);
             return res;
         }
@@ -201,7 +194,7 @@ static tgm_bench_result_t tgm_run_codec_bench(
     err = tgm_file_open(fname, &rf);
     if (err == TGM_ERROR_OK) {
         tgm_message_t *msg = NULL;
-        err = tgm_file_decode_message(rf, 0, 1, &msg);
+        err = tgm_file_decode_message(rf, 0, 1, 1, &msg);
         if (err == TGM_ERROR_OK) {
             size_t dlen = 0;
             const uint8_t *dptr = tgm_object_data(msg, 0, &dlen);

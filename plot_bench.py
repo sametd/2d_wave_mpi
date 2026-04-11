@@ -25,21 +25,13 @@ def load_frame(path, frame_idx):
     """Decode a single frame from a .tgm file."""
     f = tensogram.TensogramFile.open(path)
     idx = min(frame_idx, f.message_count() - 1)
-    _, objects = f.decode_message(idx)
-    _desc, arr = objects[0]
-    return arr
+    return f[idx].objects[0][1]
 
 
 def load_all_frames(path, skip=5):
     """Decode all frames (with skip) for animation."""
     f = tensogram.TensogramFile.open(path)
-    count = f.message_count()
-    frames = []
-    for idx in range(0, count, skip):
-        _, objects = f.decode_message(idx)
-        _desc, arr = objects[0]
-        frames.append(arr)
-    return frames
+    return [msg.objects[0][1] for msg in f[::skip]]
 
 
 def plot_comparison(frames, frame_idx, raw_arr, save):
@@ -47,12 +39,18 @@ def plot_comparison(frames, frame_idx, raw_arr, save):
     n = len(frames)
     ncols = 5
     nrows = (n + ncols - 1) // ncols
-    vmax = np.abs(raw_arr).max() if raw_arr is not None else max(
-        np.abs(a).max() for _, a in frames if a is not None
+    vmax = (
+        np.abs(raw_arr).max()
+        if raw_arr is not None
+        else max(np.abs(a).max() for _, a in frames if a is not None)
     )
 
-    fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 4, nrows * 3.5), squeeze=False)
-    fig.suptitle(f"Tensogram Codec Comparison \u2014 Frame {frame_idx}", fontsize=16, y=1.02)
+    fig, axes = plt.subplots(
+        nrows, ncols, figsize=(ncols * 4, nrows * 3.5), squeeze=False
+    )
+    fig.suptitle(
+        f"Tensogram Codec Comparison \u2014 Frame {frame_idx}", fontsize=16, y=1.02
+    )
 
     for i, (name, arr) in enumerate(frames):
         r, c = divmod(i, ncols)
@@ -61,8 +59,16 @@ def plot_comparison(frames, frame_idx, raw_arr, save):
             ax.imshow(arr, cmap="seismic", origin="lower", vmin=-vmax, vmax=vmax)
             ax.set_title(name, fontsize=10, fontweight="bold")
         else:
-            ax.text(0.5, 0.5, "FAILED", ha="center", va="center",
-                    transform=ax.transAxes, fontsize=14, color="red")
+            ax.text(
+                0.5,
+                0.5,
+                "FAILED",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                fontsize=14,
+                color="red",
+            )
             ax.set_title(name, fontsize=10, color="red")
         ax.set_xticks([])
         ax.set_yticks([])
@@ -89,7 +95,9 @@ def plot_errors(frames, raw_arr, frame_idx, save):
     ncols = 5
     nrows = (n + ncols - 1) // ncols
 
-    fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 4, nrows * 3.5), squeeze=False)
+    fig, axes = plt.subplots(
+        nrows, ncols, figsize=(ncols * 4, nrows * 3.5), squeeze=False
+    )
     fig.suptitle(f"Absolute Error vs Raw \u2014 Frame {frame_idx}", fontsize=16, y=1.02)
 
     for i, (name, arr) in enumerate(lossy):
@@ -102,8 +110,17 @@ def plot_errors(frames, raw_arr, frame_idx, save):
             plt.colorbar(im, ax=ax, shrink=0.7, format="%.1e")
         else:
             ax.imshow(np.zeros_like(diff), cmap="hot", origin="lower")
-            ax.text(0.5, 0.5, "EXACT", ha="center", va="center",
-                    transform=ax.transAxes, fontsize=12, color="lime", fontweight="bold")
+            ax.text(
+                0.5,
+                0.5,
+                "EXACT",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                fontsize=12,
+                color="lime",
+                fontweight="bold",
+            )
         ax.set_title(f"{name}\nmax={max_err:.2e}", fontsize=9)
         ax.set_xticks([])
         ax.set_yticks([])
@@ -142,7 +159,9 @@ def make_gif(path, name, skip=5):
         title.set_text(f"{name}  (frame {i * skip})")
         return [im, title]
 
-    ani = animation.FuncAnimation(fig, update, frames=len(all_frames), interval=100, blit=True)
+    ani = animation.FuncAnimation(
+        fig, update, frames=len(all_frames), interval=100, blit=True
+    )
 
     out = f"bench_{name}.gif"
     ani.save(out, writer="pillow", fps=15)
@@ -153,10 +172,16 @@ def make_gif(path, name, skip=5):
 
 def main():
     parser = argparse.ArgumentParser(description="Benchmark visualization")
-    parser.add_argument("frame", nargs="?", type=int, default=50, help="Frame index for static plots")
+    parser.add_argument(
+        "frame", nargs="?", type=int, default=50, help="Frame index for static plots"
+    )
     parser.add_argument("--save", action="store_true", help="Save static PNG plots")
-    parser.add_argument("--gifs", action="store_true", help="Generate per-codec animated GIFs")
-    parser.add_argument("--skip", type=int, default=5, help="Frame skip for GIFs (default: 5)")
+    parser.add_argument(
+        "--gifs", action="store_true", help="Generate per-codec animated GIFs"
+    )
+    parser.add_argument(
+        "--skip", type=int, default=5, help="Frame skip for GIFs (default: 5)"
+    )
     args = parser.parse_args()
 
     if args.gifs:
@@ -167,7 +192,9 @@ def main():
         print("No bench_*.tgm files found. Run the benchmark first.")
         return
 
-    names = [os.path.basename(f).replace("bench_", "").replace(".tgm", "") for f in files]
+    names = [
+        os.path.basename(f).replace("bench_", "").replace(".tgm", "") for f in files
+    ]
     print(f"Found {len(files)} benchmark files")
 
     # ── Static plots ──
