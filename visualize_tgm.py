@@ -22,13 +22,10 @@ def decode_frame(f, idx, grid_size, zoom=None):
     """Decode one frame, optionally using range decode for a sub-region."""
     if zoom:
         (r0, r1), (c0, c1) = zoom
-        raw = f.read_message(idx)
         ranges = [(r * grid_size + c0, c1 - c0) for r in range(r0, r1)]
-        return tensogram.decode_range(raw, 0, ranges).reshape(r1 - r0, c1 - c0)
+        return f.file_decode_range(idx, 0, ranges, join=True).reshape(r1 - r0, c1 - c0)
 
-    _, objects = f.decode_message(idx)
-    _desc, arr = objects[0]
-    return arr[::4, ::4]  # downsample for speed
+    return f.file_decode_object(idx, 0)["data"][::4, ::4]  # downsample for speed
 
 
 def parse_zoom(s):
@@ -51,10 +48,9 @@ def main():
     f = tensogram.TensogramFile.open(tgm_path)
     count = f.message_count()
 
-    meta, objects = f.decode_message(0)
-    _desc, first = objects[0]
-    grid_size = first.shape[0]
-    dt_val = meta["wave"]["dt"]
+    info = f.file_decode_descriptors(0)
+    grid_size = info["descriptors"][0].shape[0]
+    dt_val = info["metadata"]["wave"]["dt"]
     print(f"  {count} messages, {grid_size}x{grid_size}, dt={dt_val}")
 
     if zoom:
@@ -84,7 +80,9 @@ def main():
         title.set_text(f"t = {indices[frame_num] * dt_val:.3f}")
         return [im, title]
 
-    ani = animation.FuncAnimation(fig, update, frames=len(frames), interval=200, blit=True)
+    ani = animation.FuncAnimation(
+        fig, update, frames=len(frames), interval=200, blit=True
+    )
 
     if save:
         out = tgm_path.replace(".tgm", ".gif")
@@ -99,8 +97,12 @@ def main():
                 Image.open(buf).convert("P", palette=Image.ADAPTIVE, colors=128)
             )
         pil_frames[0].save(
-            out, save_all=True, append_images=pil_frames[1:],
-            duration=33, loop=0, optimize=True,
+            out,
+            save_all=True,
+            append_images=pil_frames[1:],
+            duration=33,
+            loop=0,
+            optimize=True,
         )
         print(f"Saved {out} ({os.path.getsize(out) / 1024 / 1024:.1f} MiB)")
     else:
