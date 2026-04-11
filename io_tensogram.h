@@ -18,9 +18,9 @@
         tgm_error tgm_err = (e);                                               \
         if (tgm_err != TGM_ERROR_OK) {                                         \
             const char *tgm_detail = tgm_last_error();                          \
+            const char *tgm_code   = tgm_error_string(tgm_err);                \
             fprintf(stderr, "Tensogram error [%s]: %s\n",                       \
-                    tgm_error_string(tgm_err),                                  \
-                    tgm_detail ? tgm_detail : "(no details)");                  \
+                    tgm_code, tgm_detail ? tgm_detail : "(no details)");        \
             MPI_Abort(MPI_COMM_WORLD, (int)tgm_err);                            \
         }                                                                       \
     }
