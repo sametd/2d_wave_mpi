@@ -38,6 +38,7 @@ The project uses a Makefile with configurable variables:
 | `PYTHON` | `python3` | Python interpreter for visualization scripts |
 | `SKIP` | `10` | Frame skip for GIF generation |
 | `FRAME` | `150` | Frame index for static benchmark plots |
+| `FILE` | `bench_raw.tgm` | Input file for `viz`/`viz-save` targets |
 | `NETCDF` | `0` | Set to `1` to link NetCDF |
 
 ### Make Targets
@@ -45,17 +46,17 @@ The project uses a Makefile with configurable variables:
 ```bash
 make                 # Build wave.x
 make run             # Build + run simulation
-make bench           # Full pipeline: run + plots + gifs
+make bench           # Full pipeline: run + plots + gifs (sequential)
 make plots           # Static benchmark PNGs (comparison + errors)
 make gifs            # Animated GIF per codec
-make viz             # Interactive visualizer for grid.tgm
+make viz             # Interactive visualizer (default: bench_raw.tgm)
 make viz-save        # Save visualizer output as GIF
 make header          # Copy tensogram.h from FFI build
 make clean           # Remove wave.x
 make distclean       # Remove wave.x + all output files
 ```
 
-Override any variable: `make run NP=4`, `make gifs SKIP=5`, `make TGM_DIR=/other/path`.
+Override any variable: `make run NP=4`, `make gifs SKIP=5`, `make viz FILE=bench_zstd-3.tgm`.
 
 ## Project Structure
 
@@ -155,12 +156,13 @@ cd crates/tensogram-python && maturin develop --release
 ### Single file animation
 
 ```bash
-make viz                              # Interactive window
+make viz                              # Interactive window (bench_raw.tgm)
+make viz FILE=bench_zstd-3.tgm       # Visualize a specific codec
 make viz-save                         # Save as GIF
 make viz-save SKIP=5                  # Save with custom frame skip
 
 # Zoom into a sub-region using range decode
-python3 visualize_tgm.py grid.tgm 10 --zoom 100:400,100:400 --save
+python3 visualize_tgm.py bench_raw.tgm 10 --zoom 100:400,100:400 --save
 ```
 
 ### Benchmark comparison
