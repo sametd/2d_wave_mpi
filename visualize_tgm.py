@@ -18,14 +18,11 @@ import tensogram
 from PIL import Image
 
 
-def decode_frame(f, idx, grid_size, zoom=None):
-    """Decode one frame, optionally using range decode for a sub-region."""
-    if zoom:
-        (r0, r1), (c0, c1) = zoom
-        ranges = [(r * grid_size + c0, c1 - c0) for r in range(r0, r1)]
-        return f.file_decode_range(idx, 0, ranges, join=True).reshape(r1 - r0, c1 - c0)
-
-    return f.file_decode_object(idx, 0)["data"][::4, ::4]  # downsample for speed
+def decode_zoom_frame(f, idx, grid_size, zoom):
+    """Decode one frame using range decode for a sub-region."""
+    (r0, r1), (c0, c1) = zoom
+    ranges = [(r * grid_size + c0, c1 - c0) for r in range(r0, r1)]
+    return f.file_decode_range(idx, 0, ranges, join=True).reshape(r1 - r0, c1 - c0)
 
 
 def parse_zoom(s):
@@ -60,11 +57,14 @@ def main():
     indices = list(range(0, count, skip))
     print(f"Decoding {len(indices)} frames (every {skip}th)...")
 
-    frames = []
-    for i, idx in enumerate(indices):
-        frames.append(decode_frame(f, idx, grid_size, zoom))
-        if (i + 1) % 50 == 0:
-            print(f"  decoded {i + 1}/{len(indices)}")
+    if zoom:
+        frames = []
+        for i, idx in enumerate(indices):
+            frames.append(decode_zoom_frame(f, idx, grid_size, zoom))
+            if (i + 1) % 50 == 0:
+                print(f"  decoded {i + 1}/{len(indices)}")
+    else:
+        frames = [msg.objects[0][1][::4, ::4] for msg in f[::skip]]
 
     vmax = max(np.abs(fr).max() for fr in frames)
 
