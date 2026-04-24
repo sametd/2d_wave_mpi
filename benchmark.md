@@ -48,27 +48,28 @@ codec table and parameters are defined in `io_tensogram.h`.
 
 | # | Config | Encoding | Filter | Compression | Size (MB) | Ratio | Encode MB/s | Max Error | RMSE |
 |---|--------|----------|--------|-------------|-----------|-------|-------------|-----------|------|
-|  1 | raw                  | none            | none    | none        |   671.500 |   1.0x |      1374.4 | 0.00e+00 | 0.00e+00 |
-|  2 | zstd-1               | none            | none    | zstd        |   639.488 |   1.0x |       583.2 | 0.00e+00 | 0.00e+00 |
-|  3 | zstd-3               | none            | none    | zstd        |   639.517 |   1.0x |       374.8 | 0.00e+00 | 0.00e+00 |
-|  4 | zstd-9               | none            | none    | zstd        |   639.545 |   1.0x |       407.9 | 0.00e+00 | 0.00e+00 |
-|  5 | lz4                  | none            | none    | lz4         |   674.134 |   1.0x |      1272.2 | 0.00e+00 | 0.00e+00 |
-|  6 | blosc2-zstd          | none            | none    | blosc2      |   525.620 |   1.3x |       255.9 | 0.00e+00 | 0.00e+00 |
-|  7 | shuffle+zstd-3       | none            | shuffle | zstd        |   528.218 |   1.3x |       521.9 | 0.00e+00 | 0.00e+00 |
-|  8 | shuffle+lz4          | none            | shuffle | lz4         |   544.682 |   1.2x |       653.5 | 0.00e+00 | 0.00e+00 |
-|  9 | shuffle+blosc2-lz4   | none            | shuffle | blosc2      |   543.644 |   1.2x |       525.6 | 0.00e+00 | 0.00e+00 |
-| 10 | shuffle+blosc2-zstd  | none            | shuffle | blosc2      |   525.612 |   1.3x |       215.0 | 0.00e+00 | 0.00e+00 |
-| 11 | pack24               | simple_packing  | none    | none        |   251.959 |   2.7x |       700.3 | 2.98e-08 | 1.65e-08 |
-| 12 | pack24+lz4           | simple_packing  | none    | lz4         |   242.992 |   2.8x |       668.4 | 2.98e-08 | 1.65e-08 |
-| 13 | pack24+zstd-3        | simple_packing  | none    | zstd        |   236.141 |   2.8x |       492.9 | 2.98e-08 | 1.65e-08 |
-| 14 | pack16+szip          | simple_packing  | none    | szip        |    90.305 |   7.4x |       523.5 | 7.63e-06 | 3.61e-06 |
-| 15 | pack16+zstd-3        | simple_packing  | none    | zstd        |   146.886 |   4.6x |       519.5 | 7.63e-06 | 3.61e-06 |
-| 16 | pack12+zstd-3        | simple_packing  | none    | zstd        |    87.803 |   7.6x |       359.5 | 2.44e-04 | 1.05e-04 |
-| 17 | zfp-rate16           | none            | none    | zfp         |   168.030 |   4.0x |       250.2 | 5.43e-05 | 3.06e-06 |
-| 18 | zfp-rate8            | none            | none    | zfp         |    84.116 |   8.0x |       413.5 | 1.27e-02 | 9.94e-04 |
-| 19 | zfp-tol1e-6          | none            | none    | zfp         |   188.409 |   3.6x |       226.1 | 5.74e-07 | 1.28e-07 |
-| 20 | sz3-abs1e-6          | none            | none    | sz3         |    73.884 |   9.1x |       193.1 | 1.00e-06 | 5.10e-07 |
-| 21 | sz3-rel1e-4          | none            | none    | sz3         |    21.157 |  31.7x |       280.2 | 1.00e-04 | 4.87e-05 |
+|  1 | raw                  | none            | none    | none        |   671.500 |   1.0x |      1395.1 | 0.00e+00 | 0.00e+00 |
+|  2 | zstd-1               | none            | none    | zstd        |   639.488 |   1.0x |       591.3 | 0.00e+00 | 0.00e+00 |
+|  3 | zstd-3               | none            | none    | zstd        |   639.517 |   1.0x |       389.0 | 0.00e+00 | 0.00e+00 |
+|  4 | zstd-9               | none            | none    | zstd        |   639.545 |   1.0x |       413.8 | 0.00e+00 | 0.00e+00 |
+|  5 | lz4                  | none            | none    | lz4         |   674.134 |   1.0x |      1298.3 | 0.00e+00 | 0.00e+00 |
+|  6 | blosc2-zstd          | none            | none    | blosc2      |   525.620 |   1.3x |       256.0 | 0.00e+00 | 0.00e+00 |
+|  7 | shuffle+zstd-3       | none            | shuffle | zstd        |   528.218 |   1.3x |       519.6 | 0.00e+00 | 0.00e+00 |
+|  8 | shuffle+lz4          | none            | shuffle | lz4         |   544.682 |   1.2x |       548.1 | 0.00e+00 | 0.00e+00 |
+|  9 | shuffle+blosc2-lz4   | none            | shuffle | blosc2      |   543.644 |   1.2x |       507.6 | 0.00e+00 | 0.00e+00 |
+| 10 | shuffle+blosc2-zstd  | none            | shuffle | blosc2      |   525.612 |   1.3x |       213.5 | 0.00e+00 | 0.00e+00 |
+| 11 | pack24               | simple_packing  | none    | none        |   251.959 |   2.7x |       700.8 | 2.98e-08 | 1.65e-08 |
+| 12 | pack24+lz4           | simple_packing  | none    | lz4         |   242.992 |   2.8x |       652.4 | 2.98e-08 | 1.65e-08 |
+| 13 | pack24+szip          | simple_packing  | none    | szip        |   171.480 |   3.9x |       468.0 | 2.98e-08 | 1.65e-08 |
+| 14 | pack24+zstd-3        | simple_packing  | none    | zstd        |   236.141 |   2.8x |       485.3 | 2.98e-08 | 1.65e-08 |
+| 15 | pack16+szip          | simple_packing  | none    | szip        |    90.305 |   7.4x |       517.6 | 7.63e-06 | 3.61e-06 |
+| 16 | pack16+zstd-3        | simple_packing  | none    | zstd        |   146.886 |   4.6x |       512.5 | 7.63e-06 | 3.61e-06 |
+| 17 | pack12+zstd-3        | simple_packing  | none    | zstd        |    87.803 |   7.6x |       351.6 | 2.44e-04 | 1.05e-04 |
+| 18 | zfp-rate16           | none            | none    | zfp         |   168.030 |   4.0x |       245.7 | 5.43e-05 | 3.06e-06 |
+| 19 | zfp-rate8            | none            | none    | zfp         |    84.116 |   8.0x |       409.7 | 1.27e-02 | 9.94e-04 |
+| 20 | zfp-tol1e-6          | none            | none    | zfp         |   188.409 |   3.6x |       225.1 | 5.74e-07 | 1.28e-07 |
+| 21 | sz3-abs1e-6          | none            | none    | sz3         |    73.884 |   9.1x |       188.1 | 1.00e-06 | 5.10e-07 |
+| 22 | sz3-rel1e-4          | none            | none    | sz3         |    21.157 |  31.7x |       280.1 | 1.00e-04 | 4.87e-05 |
 
 ---
 
@@ -80,11 +81,11 @@ Float64 data has high-entropy mantissa bits that look like random noise to byte-
 
 | Config | What it does | Size | Ratio | Speed | Lossy? |
 |--------|-------------|------|-------|-------|--------|
-| **raw** | No compression, just tensogram framing | 672 MB | 1.0x | 1374 MB/s | No |
-| **lz4** | Fast lossless compressor (no effort spent searching for patterns) | 674 MB | 1.0x | 1272 MB/s | No |
-| **zstd level 1** | Zstandard at minimum effort | 639 MB | 1.05x | 583 MB/s | No |
-| **zstd level 3** | Zstandard at default effort | 640 MB | 1.05x | 375 MB/s | No |
-| **zstd level 9** | Zstandard at high effort (diminishing returns on float64) | 640 MB | 1.05x | 408 MB/s | No |
+| **raw** | No compression, just tensogram framing | 672 MB | 1.0x | 1395 MB/s | No |
+| **lz4** | Fast lossless compressor (no effort spent searching for patterns) | 674 MB | 1.0x | 1298 MB/s | No |
+| **zstd level 1** | Zstandard at minimum effort | 639 MB | 1.05x | 591 MB/s | No |
+| **zstd level 3** | Zstandard at default effort | 640 MB | 1.05x | 389 MB/s | No |
+| **zstd level 9** | Zstandard at high effort (diminishing returns on float64) | 640 MB | 1.05x | 414 MB/s | No |
 | **blosc2 (zstd)** | Blosc2 meta-compressor using zstd internally, chunk-based | 526 MB | 1.28x | 256 MB/s | No |
 
 **Key takeaway:** Lossless compressors barely help on float64 data. LZ4 is fastest but provides zero compression. Zstd levels 1-9 all give ~5% reduction because the bottleneck is float64 entropy, not search effort. Blosc2 does slightly better (1.28x) because its chunked format finds patterns within smaller blocks.
@@ -97,12 +98,12 @@ Byte shuffling rearranges the 8 bytes of each float64 value so that all first by
 
 | Config | What it does | Size | Ratio | Speed | Lossy? |
 |--------|-------------|------|-------|-------|--------|
-| **shuffle + zstd 3** | Byte shuffle then zstd | 528 MB | 1.27x | 522 MB/s | No |
-| **shuffle + lz4** | Byte shuffle then lz4 | 545 MB | 1.23x | 654 MB/s | No |
-| **shuffle + blosc2 (lz4)** | Byte shuffle then blosc2 with lz4 | 544 MB | 1.23x | 526 MB/s | No |
-| **shuffle + blosc2 (zstd)** | Byte shuffle then blosc2 with zstd | 526 MB | 1.28x | 215 MB/s | No |
+| **shuffle + zstd 3** | Byte shuffle then zstd | 528 MB | 1.27x | 520 MB/s | No |
+| **shuffle + lz4** | Byte shuffle then lz4 | 545 MB | 1.23x | 548 MB/s | No |
+| **shuffle + blosc2 (lz4)** | Byte shuffle then blosc2 with lz4 | 544 MB | 1.23x | 508 MB/s | No |
+| **shuffle + blosc2 (zstd)** | Byte shuffle then blosc2 with zstd | 526 MB | 1.28x | 214 MB/s | No |
 
-**Key takeaway:** Shuffle helps, but only gets to ~1.3x. Best lossless option is **shuffle + zstd** (1.27x at 522 MB/s). If you need exact float64 preservation, this is the ceiling.
+**Key takeaway:** Shuffle helps, but only gets to ~1.3x. Best lossless option is **shuffle + zstd** (1.27x at 520 MB/s). If you need exact float64 preservation, this is the ceiling.
 
 ---
 
@@ -112,12 +113,13 @@ Reduces each float64 to a fixed number of bits by computing `(value - min) / sca
 
 | Config | Bits | What it does | Size | Ratio | Speed | Max Error | RMSE |
 |--------|------|-------------|------|-------|-------|-----------|------|
-| **pack24** | 24 | Quantize to 24 bits, no further compression | 252 MB | 2.7x | 700 MB/s | 3.0e-08 | 1.7e-08 |
-| **pack24 + lz4** | 24 | Quantize then lz4 | 243 MB | 2.8x | 668 MB/s | 3.0e-08 | 1.7e-08 |
-| **pack24 + zstd** | 24 | Quantize then zstd | 236 MB | 2.8x | 493 MB/s | 3.0e-08 | 1.7e-08 |
-| **pack16 + szip** | 16 | Quantize then szip (CCSDS standard) | 90 MB | 7.4x | 524 MB/s | 7.6e-06 | 3.6e-06 |
-| **pack16 + zstd** | 16 | Quantize then zstd | 147 MB | 4.6x | 520 MB/s | 7.6e-06 | 3.6e-06 |
-| **pack12 + zstd** | 12 | Quantize then zstd | 88 MB | 7.6x | 360 MB/s | 2.4e-04 | 1.1e-04 |
+| **pack24** | 24 | Quantize to 24 bits, no further compression | 252 MB | 2.7x | 701 MB/s | 3.0e-08 | 1.7e-08 |
+| **pack24 + lz4** | 24 | Quantize then lz4 | 243 MB | 2.8x | 652 MB/s | 3.0e-08 | 1.7e-08 |
+| **pack24 + zstd** | 24 | Quantize then zstd | 236 MB | 2.8x | 485 MB/s | 3.0e-08 | 1.7e-08 |
+| **pack24 + szip** | 24 | Quantize then szip (CCSDS standard) | **171 MB** | **3.9x** | **468 MB/s** | **3.0e-08** | **1.7e-08** |
+| **pack16 + zstd** | 16 | Quantize then zstd | 147 MB | 4.6x | 513 MB/s | 7.6e-06 | 3.6e-06 |
+| **pack16 + szip** | 16 | Quantize then szip | 90 MB | 7.4x | 518 MB/s | 7.6e-06 | 3.6e-06 |
+| **pack12 + zstd** | 12 | Quantize then zstd | 88 MB | 7.6x | 352 MB/s | 2.4e-04 | 1.1e-04 |
 
 **What the bit depths mean for a wave amplitude range of ~[-0.3, 1.0]:**
 
@@ -127,7 +129,11 @@ Reduces each float64 to a fixed number of bits by computing `(value - min) / sca
 | 16 | ~8 microseconds | ~5 digits | Routine analysis, visualization |
 | 12 | ~0.2 milliseconds | ~3-4 digits | Quick previews, screening |
 
-**Key takeaway:** **pack16 + szip** is now the sweet spot at this wire-format version — 7.4x compression at 524 MB/s with the same error as pack16 + zstd (4.6x). If szip isn't available in your build, **pack16 + zstd** still gives 4.6x at 520 MB/s.
+**Key takeaways:**
+
+- **`pack24 + szip` is the standout** at the near-lossless tier — **3.9x compression** at **468 MB/s** and only 3e-8 quantization error. It is **27% smaller** than `pack24 + zstd` (236 MB → 171 MB) at the same error level. On packed integer streams szip is built for exactly this — RLE of run-length-coded zero-runs across the high bytes of MSB-aligned simple_packing output.
+- **`pack16 + szip`** stays the sweet spot at the microsecond-error tier (7.4x at 518 MB/s).
+- The pattern across both bit depths confirms szip is the right pipeline partner for `simple_packing` whenever it is available; zstd loses ground because szip's entropy model exploits the structure that simple_packing creates (long runs in the high bits) which generic zstd doesn't see as cleanly.
 
 ---
 
@@ -139,9 +145,9 @@ These are designed specifically for scientific floating-point arrays. They explo
 
 | Config | Mode | What it does | Size | Ratio | Speed | Max Error | RMSE |
 |--------|------|-------------|------|-------|-------|-----------|------|
-| **zfp rate 16** | Fixed rate | Each value gets exactly 16 bits (guaranteed 4x ratio) | 168 MB | 4.0x | 250 MB/s | 5.4e-05 | 3.1e-06 |
-| **zfp rate 8** | Fixed rate | Each value gets exactly 8 bits (guaranteed 8x ratio) | 84 MB | 8.0x | 413 MB/s | 1.3e-02 | 9.9e-04 |
-| **zfp tolerance 1e-6** | Fixed accuracy | Error guaranteed below 1e-6 per value | 188 MB | 3.6x | 226 MB/s | 5.7e-07 | 1.3e-07 |
+| **zfp rate 16** | Fixed rate | Each value gets exactly 16 bits (guaranteed 4x ratio) | 168 MB | 4.0x | 246 MB/s | 5.4e-05 | 3.1e-06 |
+| **zfp rate 8** | Fixed rate | Each value gets exactly 8 bits (guaranteed 8x ratio) | 84 MB | 8.0x | 410 MB/s | 1.3e-02 | 9.9e-04 |
+| **zfp tolerance 1e-6** | Fixed accuracy | Error guaranteed below 1e-6 per value | 188 MB | 3.6x | 225 MB/s | 5.7e-07 | 1.3e-07 |
 
 - **Fixed rate** = you choose the size, error varies
 - **Fixed accuracy** = you choose the max error, size varies
@@ -150,7 +156,7 @@ These are designed specifically for scientific floating-point arrays. They explo
 
 | Config | Mode | What it does | Size | Ratio | Speed | Max Error | RMSE |
 |--------|------|-------------|------|-------|-------|-----------|------|
-| **sz3 absolute 1e-6** | Absolute error bound | Every value within 1e-6 of original | 74 MB | 9.1x | 193 MB/s | 1.0e-06 | 5.1e-07 |
+| **sz3 absolute 1e-6** | Absolute error bound | Every value within 1e-6 of original | 74 MB | 9.1x | 188 MB/s | 1.0e-06 | 5.1e-07 |
 | **sz3 relative 1e-4** | Relative error bound | Every value within 0.01% of original | 21 MB | 31.7x | 280 MB/s | 1.0e-04 | 4.9e-05 |
 
 **Key takeaway:** SZ3 with relative error bound achieves **31.7x compression** while keeping every value within 0.01% of the original. For error-bounded science, **sz3 absolute 1e-6** gives 9.1x with a hard guarantee that no value deviates by more than 0.000001.
@@ -161,12 +167,12 @@ These are designed specifically for scientific floating-point arrays. They explo
 
 | Use case | Recommended | Ratio | Error | Speed |
 |----------|------------|-------|-------|-------|
-| Exact reproduction required | shuffle + zstd | 1.3x | 0 | 522 MB/s |
-| Near-lossless archival | pack24 + zstd | 2.8x | < 30 ns | 493 MB/s |
-| Day-to-day analysis | pack16 + szip | 7.4x | < 8 us | 524 MB/s |
-| Error-bounded science | sz3 absolute 1e-6 | 9.1x | = 1e-6 | 193 MB/s |
+| Exact reproduction required | shuffle + zstd | 1.3x | 0 | 520 MB/s |
+| **Near-lossless archival** | **pack24 + szip** | **3.9x** | **< 30 ns** | **468 MB/s** |
+| Day-to-day analysis | pack16 + szip | 7.4x | < 8 us | 518 MB/s |
+| Error-bounded science | sz3 absolute 1e-6 | 9.1x | = 1e-6 | 188 MB/s |
 | Visualization / screening | sz3 relative 1e-4 | 31.7x | 0.01% | 280 MB/s |
-| Maximum throughput | raw | 1.0x | 0 | 1374 MB/s |
+| Maximum throughput | raw | 1.0x | 0 | 1395 MB/s |
 
 ---
 
@@ -174,7 +180,7 @@ These are designed specifically for scientific floating-point arrays. They explo
 
 - **Why is lz4 slightly larger than raw?** LZ4 cannot compress the random-looking float64 mantissa bits, so the output is the original data plus LZ4's framing overhead (~8.7 KB per frame).
 - **Why do zstd levels 1, 3, and 9 all give the same ratio?** The bottleneck is float64 entropy, not search depth. Higher levels spend more CPU but find no additional patterns in random-looking mantissa bytes.
-- **szip** (CCSDS 121.0-B-3) is the space agency standard used in satellite data. It works well with byte-aligned quantized data (16-bit, 32-bit) but does not support raw 64-bit floats.
+- **Why does szip dominate the simple_packing tier?** szip (CCSDS 121.0-B-3) is an entropy coder designed for integer streams with long runs in the high bits — exactly what `simple_packing` produces when amplitude only uses part of the dynamic range. tensogram automatically sets the `AEC_DATA_3BYTE` flag for 17–24 bit samples and the `AEC_DATA_MSB` flag whenever encoding is `simple_packing`, so the same `szip_flags: 8` JSON works for `pack16+szip`, `pack24+szip`, and any other `packN+szip` you add.
 - **Encode throughput** fluctuates across runs by ~20-30% depending on system load; compression ratios are deterministic.
 
 *Generated by 2d_wave_mpi benchmark*
