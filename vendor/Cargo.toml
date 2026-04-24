@@ -1,0 +1,18 @@
+# Build-helper crate: forces Cargo to fetch `tensogram-ffi` from crates.io
+# and produce its cdylib (`target/release/deps/libtensogram_ffi-*.so`)
+# plus ship its `tensogram.h` source into the registry cache.
+# The Makefile picks both up. See README.md for the full build flow.
+#
+# Version is `*` (track latest). Pin here for reproducible benchmarks.
+[package]
+name = "tgm-cbuild"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+crate-type = ["rlib"]
+
+[dependencies]
+tensogram-ffi = "*"
