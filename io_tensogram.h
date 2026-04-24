@@ -173,7 +173,7 @@ static tgm_bench_result_t tgm_run_codec_bench(
         const uint8_t *ptrs[1] = { (const uint8_t *)snapshots[s] };
         size_t lens[1] = { raw_bytes };
 
-        err = tgm_file_append(file, json, ptrs, lens, 1, "xxh3");
+        err = tgm_file_append(file, json, ptrs, lens, 1, "xxh3", 0);
         if (err != TGM_ERROR_OK) {
             fprintf(stderr, "  [%s] encode+append failed at step %d: %s\n",
                     codec->name, s, tgm_last_error());
@@ -194,7 +194,7 @@ static tgm_bench_result_t tgm_run_codec_bench(
     err = tgm_file_open(fname, &rf);
     if (err == TGM_ERROR_OK) {
         tgm_message_t *msg = NULL;
-        err = tgm_file_decode_message(rf, 0, 1, 1, &msg);
+        err = tgm_file_decode_message(rf, 0, 1, 1, 0, &msg);
         if (err == TGM_ERROR_OK) {
             size_t dlen = 0;
             const uint8_t *dptr = tgm_object_data(msg, 0, &dlen);
