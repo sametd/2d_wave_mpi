@@ -55,6 +55,8 @@ static const tgm_codec_config_t TGM_CODECS[] = {
     /* lossy: simple_packing */
     { "pack24",           "simple_packing", 24, "none", "none", "" },
     { "pack24+lz4",       "simple_packing", 24, "none", "lz4",  "" },
+    { "pack24+szip",      "simple_packing", 24, "none", "szip",
+      "\"szip_rsi\":128,\"szip_block_size\":16,\"szip_flags\":8" },
     { "pack24+zstd-3",    "simple_packing", 24, "none", "zstd", "\"zstd_level\":3" },
     { "pack16+szip",      "simple_packing", 16, "none", "szip",
       "\"szip_rsi\":128,\"szip_block_size\":16,\"szip_flags\":8" },
