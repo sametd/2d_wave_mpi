@@ -11,7 +11,7 @@
 #include <math.h>
 #include <sys/stat.h>
 #include <mpi.h>
-#include "tensogram.h"
+#include <tensogram/tensogram.h>
 
 #define TGM_CHECK(e)                                                            \
     {                                                                           \
@@ -90,7 +90,7 @@ typedef struct {
 
 static int tgm_build_json(char *buf, int buflen,
                           const tgm_codec_config_t *c,
-                          double T, const double *X, size_t num_values)
+                          double T, size_t num_values)
 {
     int pos = 0, remaining = buflen, n;
 
@@ -107,15 +107,9 @@ static int tgm_build_json(char *buf, int buflen,
             grid_size, grid_size, grid_size);
 
     if (strcmp(c->encoding, "simple_packing") == 0) {
-        double ref_val;
-        int32_t bin_scale;
-        tgm_error err = tgm_simple_packing_compute_params(
-            X, num_values, (uint32_t)c->bits_per_value, 0, &ref_val, &bin_scale);
-        if (err != TGM_ERROR_OK) return -1;
         JAPPEND("\"encoding\":\"simple_packing\","
-                "\"reference_value\":%.17g,\"binary_scale_factor\":%d,"
-                "\"decimal_scale_factor\":0,\"bits_per_value\":%d,",
-                ref_val, (int)bin_scale, c->bits_per_value);
+                "\"sp_bits_per_value\":%d,",
+                c->bits_per_value);
     } else {
         JAPPEND("\"encoding\":\"none\",");
     }
@@ -166,7 +160,7 @@ static tgm_bench_result_t tgm_run_codec_bench(
     for (int s = 0; s < num_snaps; s++) {
         char json[4096];
         if (tgm_build_json(json, sizeof(json), codec,
-                           snap_times[s], snapshots[s], num_values) < 0) {
+                           snap_times[s], num_values) < 0) {
             fprintf(stderr, "  [%s] JSON overflow at step %d\n", codec->name, s);
             tgm_file_close(file);
             return res;
