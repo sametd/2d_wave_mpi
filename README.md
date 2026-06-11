@@ -12,17 +12,13 @@ sudo apt install libopenmpi-dev
 #    or (Arch)
 sudo pacman -S openmpi
 
-# 2. Install the Rust toolchain (once)
-#    https://rustup.rs
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# 3. Build libtensogram_ffi.so + fetch tensogram.h (from crates.io)
+# 2. Download the prebuilt tensogram C library (from GitHub releases)
 make tensogram
 
-# 4. Create the Python venv and install tensogram from PyPI
+# 3. Create the Python venv and install tensogram from PyPI
 make py-setup
 
-# 5. Build and run (16 MPI ranks by default)
+# 4. Build and run (16 MPI ranks by default)
 make run
 ```
 
@@ -42,12 +38,13 @@ The project uses a Makefile with configurable variables:
 | `FRAME` | `150` | Frame index for static benchmark plots |
 | `FILE` | `bench_raw.tgm` | Input file for `viz`/`viz-save` targets |
 | `NETCDF` | `0` | Set to `1` to link NetCDF |
+| `TGM_VERSION` | `0.21.0` | Tensogram release to download |
 
 ### Make Targets
 
 ```bash
-make                 # Build wave.x (auto-builds tensogram if needed)
-make tensogram       # Build libtensogram_ffi.so + copy tensogram.h
+make                 # Build wave.x (auto-downloads tensogram if needed)
+make tensogram       # Download + unpack the prebuilt tensogram C library
 make py-setup        # Create .venv and pip install tensogram, numpy, matplotlib, Pillow
 make run             # Build + run simulation
 make bench           # Full pipeline: run + plots + gifs (sequential)
@@ -57,7 +54,7 @@ make viz             # Interactive visualizer (default: bench_raw.tgm)
 make viz-save        # Save visualizer output as GIF
 make print-tgm       # Debug: show resolved tensogram paths
 make clean           # Remove wave.x
-make distclean       # Remove wave.x + outputs + vendor/target + venv
+make distclean       # Remove wave.x + outputs + .tensogram + venv
 ```
 
 Override any variable: `make run NP=4`, `make gifs SKIP=5`, `make viz FILE=bench_zstd-3.tgm`.
@@ -70,10 +67,9 @@ waveEq.c            Main solver (MPI topology, Gauss-Seidel, time loop)
 config.h            Simulation parameters and output toggles
 io_tensogram.h      Tensogram benchmark (included when write_tensogram=1)
 io_netcdf.h         NetCDF output (included when write_netcdf=1)
-tensogram.h         Tensogram C API header (gitignored, copied by `make tensogram`)
-vendor/             Cargo helper that fetches tensogram-ffi from crates.io
-  Cargo.toml          (depends on `tensogram-ffi = "*"`)
-  src/lib.rs          (intentionally empty)
+.tensogram/         Prebuilt tensogram install prefix (gitignored, see `make tensogram`)
+  lib/                libtensogram.so + libtensogram.a + pkg-config
+  include/tensogram/  tensogram.h (C API header)
 visualize_tgm.py    Animate a single .tgm file (PIL-optimized GIFs)
 plot_bench.py       Benchmark report: comparison PNGs + per-codec GIFs
 benchmark.md        Compression benchmark results (auto-generated)
@@ -87,35 +83,35 @@ Controlled by flags in `config.h`. Set to `1` to enable, `0` to disable.
 |---|---|---|---|
 | `write_posix` | 0 | `t_NNNN.txt` | nothing |
 | `write_netcdf` | 0 | `grid.nc` | `libnetcdf` |
-| `write_tensogram` | 1 | `bench_*.tgm` | `libtensogram_ffi` (from crates.io) |
+| `write_tensogram` | 1 | `bench_*.tgm` | `libtensogram` (prebuilt GitHub release asset) |
 
 ### Tensogram (default)
 
 [Tensogram](https://github.com/ecmwf/tensogram) is a binary format for
 N-dimensional tensors with built-in compression, published as:
 
-- `tensogram-ffi` on [crates.io](https://crates.io/crates/tensogram-ffi) — the C FFI library
+- prebuilt C/C++ tarballs on [GitHub releases](https://github.com/ecmwf/tensogram/releases) — `libtensogram` + `tensogram.h`
 - `tensogram` on [PyPI](https://pypi.org/project/tensogram/) — the Python bindings
 
-The C side is fetched and built via a tiny helper crate in `vendor/`:
+The C side is installed by downloading the release tarball for the
+current platform (`linux-x86_64`, `linux-aarch64`, or `macos-aarch64`)
+into the local `.tensogram/` prefix:
 
 ```bash
 make tensogram
 ```
 
-Under the hood this runs `cargo build --release` on `vendor/Cargo.toml`
-(which declares `tensogram-ffi = "*"`), symlinks the produced cdylib into
-`vendor/target/release/libtensogram_ffi.so`, and copies `tensogram.h`
-from the Cargo registry cache into the project root. No manual version
-management, no path environment variables, no local tensogram checkout.
+No Rust toolchain, no sudo, no system-wide install. The version is
+pinned by `TGM_VERSION` in the Makefile (currently `0.21.0`); override
+it on the command line to try another release:
 
-To pin a specific version (e.g. for reproducible benchmarks), edit
-`vendor/Cargo.toml`:
-
-```toml
-[dependencies]
-tensogram-ffi = "=0.18.1"
+```bash
+make tensogram TGM_VERSION=0.21.0
 ```
+
+If you prefer a system-wide install instead, follow the
+[C API guide](https://sites.ecmwf.int/docs/tensogram/main/guide/c-api.html)
+and unpack the tarball into `/usr/local`.
 
 ### NetCDF
 

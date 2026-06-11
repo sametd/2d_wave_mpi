@@ -1,29 +1,47 @@
 #  2D Wave Equation MPI Solver — Makefile
 #
-#  The tensogram C FFI library is fetched from crates.io via a small
-#  helper crate in `vendor/`. Run `make tensogram` once (or let `make`
-#  run it as a dependency) to build `libtensogram_ffi.so` and drop
-#  `tensogram.h` into the project root.
+#  The tensogram C FFI library is downloaded as a prebuilt release
+#  asset from GitHub (https://github.com/ecmwf/tensogram/releases)
+#  into the local `.tensogram/` prefix. Run `make tensogram` once
+#  (or let `make` run it as a dependency).
 #
 #  Common targets:
-#    make                    Build wave.x (auto-builds tensogram)
+#    make                    Build wave.x (auto-downloads tensogram)
 #    make run                Build and run with default MPI ranks
 #    make bench              Build, run, then plot benchmarks (sequential)
 #    make viz FILE=bench_raw.tgm   Visualize a .tgm file
 #    make gifs               Generate animated GIFs for all codecs
-#    make tensogram          Build libtensogram_ffi.so + copy header
-#    make clean              Remove build artifacts (keep vendor cache)
-#    make distclean          Remove everything, including vendor/target
+#    make tensogram          Download + unpack the prebuilt FFI tarball
+#    make clean              Remove build artifacts (keep .tensogram)
+#    make distclean          Remove everything, including .tensogram
 #    make print-tgm          Debug: show resolved tensogram paths
 
 CC       := mpicc
 CFLAGS   := -O3 -march=native -Wall -Wextra
 LDLIBS   := -lm -lpthread -ldl
 
-VENDOR_DIR := vendor
-TGM_BUILD  := $(VENDOR_DIR)/target/release
-TGM_LIB    := $(TGM_BUILD)/libtensogram_ffi.so
-TGM_HEADER := tensogram.h
+#  ── tensogram prebuilt release asset ──────────────────────────────
+TGM_VERSION ?= 0.21.0
+
+UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
+ifeq ($(UNAME_S),Darwin)
+  TGM_PLATFORM := macos-aarch64
+  TGM_SOEXT    := dylib
+else ifeq ($(UNAME_M),aarch64)
+  TGM_PLATFORM := linux-aarch64
+  TGM_SOEXT    := so
+else
+  TGM_PLATFORM := linux-x86_64
+  TGM_SOEXT    := so
+endif
+
+TGM_PREFIX  := .tensogram
+TGM_LIBDIR  := $(TGM_PREFIX)/lib
+TGM_LIB     := $(TGM_LIBDIR)/libtensogram.$(TGM_SOEXT)
+TGM_INCLUDE := $(TGM_PREFIX)/include
+TGM_ASSET   := tensogram-ffi-$(TGM_VERSION)-$(TGM_PLATFORM).tar.gz
+TGM_URL     := https://github.com/ecmwf/tensogram/releases/download/$(TGM_VERSION)/$(TGM_ASSET)
 
 NETCDF   ?= 0
 ifeq ($(NETCDF),1)
@@ -44,49 +62,46 @@ SKIP     ?= 10
 FRAME    ?= 150
 FILE     ?= bench_raw.tgm
 
-RUNENV   := LD_LIBRARY_PATH=$(abspath $(TGM_BUILD)):$$LD_LIBRARY_PATH
+RUNENV   := LD_LIBRARY_PATH=$(abspath $(TGM_LIBDIR)):$$LD_LIBRARY_PATH
 
 TARGET   := wave.x
 SRC      := waveEq.c
-HEADERS  := config.h io_tensogram.h io_netcdf.h $(TGM_HEADER)
+HEADERS  := config.h io_tensogram.h io_netcdf.h
 
 .PHONY: all run bench viz viz-save gifs plots clean distclean tensogram py-setup print-tgm
 
 all: $(TARGET)
 
 $(TARGET): $(SRC) $(HEADERS) $(TGM_LIB)
-	$(CC) $(CFLAGS) -I. $(SRC) -o $@ \
-	    -L$(abspath $(TGM_BUILD)) -ltensogram_ffi \
-	    -Wl,-rpath,$(abspath $(TGM_BUILD)) $(LDLIBS)
+	$(CC) $(CFLAGS) -I. -I$(TGM_INCLUDE) $(SRC) -o $@ \
+	    -L$(abspath $(TGM_LIBDIR)) -ltensogram \
+	    -Wl,-rpath,$(abspath $(TGM_LIBDIR)) $(LDLIBS)
 
-#  ── tensogram from crates.io via the vendor helper crate ──────────
-#  `cargo build` downloads `tensogram-ffi` into the shared Cargo cache
-#  the first time around, then builds its cdylib. The hashed artefact
-#  under `target/release/deps/` is then stabilised via a symlink so
-#  `mpicc -ltensogram_ffi` can find it.
+#  ── tensogram prebuilt C-FFI tarball from GitHub releases ─────────
+#  Each release ships `tensogram-ffi-<version>-<platform>.tar.gz`
+#  containing lib/libtensogram.{so,dylib}, lib/libtensogram.a, a
+#  pkg-config descriptor, and include/tensogram/tensogram.h. We
+#  unpack it into the local `.tensogram/` prefix — no Rust
+#  toolchain, no sudo, no /usr/local pollution.
 
-tensogram: $(TGM_LIB) $(TGM_HEADER)
+tensogram: $(TGM_LIB)
 
-$(TGM_LIB): $(VENDOR_DIR)/Cargo.toml $(VENDOR_DIR)/src/lib.rs
-	cd $(VENDOR_DIR) && cargo build --release
-	@ln -sf "$$(ls $(abspath $(VENDOR_DIR))/target/release/deps/libtensogram_ffi-*.so | head -1)" $(TGM_LIB)
+$(TGM_LIB):
+	@echo "Fetching $(TGM_ASSET) ..."
+	@mkdir -p $(TGM_PREFIX)
+	curl -fsSL "$(TGM_URL)" | tar -xz -C $(TGM_PREFIX)
+	@touch $(TGM_LIB)
 	@echo "  -> $(TGM_LIB)"
-
-#  `cargo metadata` locates the tensogram-ffi crate root in the
-#  registry cache; the shipped `tensogram.h` sits next to Cargo.toml.
-
-$(TGM_HEADER): $(TGM_LIB)
-	@hdr="$$(cargo metadata --manifest-path $(VENDOR_DIR)/Cargo.toml --format-version=1 \
-	    | $(PYTHON) -c "import sys,json,os;m=json.load(sys.stdin);print(next(os.path.join(os.path.dirname(p['manifest_path']),'tensogram.h') for p in m['packages'] if p['name']=='tensogram-ffi'))")"; \
-	cp "$$hdr" $(TGM_HEADER); \
-	echo "  -> $(TGM_HEADER) (from $$hdr)"
+	@echo "  -> $(TGM_INCLUDE)/tensogram/tensogram.h"
 
 print-tgm:
-	@echo "VENDOR_DIR : $(VENDOR_DIR)"
-	@echo "TGM_BUILD  : $(abspath $(TGM_BUILD))"
-	@echo "TGM_LIB    : $(TGM_LIB)"
-	@echo "TGM_HEADER : $(TGM_HEADER)"
-	@echo "RUNENV     : $(RUNENV)"
+	@echo "TGM_VERSION  : $(TGM_VERSION)"
+	@echo "TGM_PLATFORM : $(TGM_PLATFORM)"
+	@echo "TGM_URL      : $(TGM_URL)"
+	@echo "TGM_PREFIX   : $(abspath $(TGM_PREFIX))"
+	@echo "TGM_LIB      : $(TGM_LIB)"
+	@echo "TGM_INCLUDE  : $(TGM_INCLUDE)"
+	@echo "RUNENV       : $(RUNENV)"
 
 run: $(TARGET)
 	$(RUNENV) mpirun $(MPIFLAGS) -np $(NP) ./$(TARGET)
@@ -110,10 +125,10 @@ clean:
 	rm -f $(TARGET)
 
 distclean: clean
-	rm -f bench_*.tgm bench_*.gif bench_*.png grid.tgm benchmark.md $(TGM_HEADER)
-	rm -rf $(VENDOR_DIR)/target $(VENDOR_DIR)/Cargo.lock $(VENV)
+	rm -f bench_*.tgm bench_*.gif bench_*.png grid.tgm benchmark.md
+	rm -rf $(TGM_PREFIX) $(VENV)
 
 py-setup:
 	python3 -m venv $(VENV)
 	$(VENV)/bin/pip install --upgrade pip
-	$(VENV)/bin/pip install tensogram numpy matplotlib Pillow
+	$(VENV)/bin/pip install 'tensogram==$(TGM_VERSION)' numpy matplotlib Pillow
